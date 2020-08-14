@@ -4,8 +4,8 @@ const Ora = require('ora');
 const RLP = require('rlp');
 const { keccak256 } = require('web3-utils');
 const { connect } = require('@aragon/connect');
-const {encodeActCall, execAppMethod} = require('mathew-aragon-toolkit');
-const { encodeCallScript } = require("@aragon/test-helpers/evmScript");
+const { encodeActCall, execAppMethod } = require('mathew-aragon-toolkit');
+const { encodeCallScript } = require('@aragon/test-helpers/evmScript');
 const {
     setIntervalAsync,
     clearIntervalAsync
@@ -29,42 +29,49 @@ const community_dao = '0x75B98710D5995AB9992F02492B7568b43133161D';
 const network = 'rinkeby';
 
 // signatures
-const vaultAppId = '0x7e852e0fcfce6551c13800f1e7476f982525c2b5277ba14b24339c68416336d1';
-const vaultBase = (network === 'rinkeby') 
-    ? '0x35c5Abf253C873deE9ee4fe2687CD378Eff1263e'
-    : '0x03AD07802BBA1b6FA293E593a42845E6569A7470'
+const vaultAppId =
+    '0x7e852e0fcfce6551c13800f1e7476f982525c2b5277ba14b24339c68416336d1';
+const vaultBase =
+    network === 'rinkeby'
+        ? '0x35c5Abf253C873deE9ee4fe2687CD378Eff1263e'
+        : '0x03AD07802BBA1b6FA293E593a42845E6569A7470';
 
+const fdai_managerAppId =
+    '0x6b20a3010614eeebf2138ccec99f028a61c811b3b1a3343b6ff635985c75c91f';
+const fdai_managerBase =
+    network === 'rinkeby'
+        ? '0xE775468F3Ee275f740A22EB9DD7aDBa9b7933Aa0'
+        : '0xde3A93028F2283cc28756B3674BD657eaFB992f4';
 
-const fdai_managerAppId = '0x6b20a3010614eeebf2138ccec99f028a61c811b3b1a3343b6ff635985c75c91f';
-const fdai_managerBase = (network === 'rinkeby')
-    ? '0xE775468F3Ee275f740A22EB9DD7aDBa9b7933Aa0'
-    : '0xde3A93028F2283cc28756B3674BD657eaFB992f4'
+const delayAppId =
+    '0x1c2b93ad1c4d4302f0169c8f596ce518e4a3324b1fed90c2d80a549a072bcd4e';
+const delayBase =
+    network === 'rinkeby'
+        ? '0x214044cc3fa7a3ECEF0bC9052Fe9B296585E3275'
+        : '0x07759C39BbC1F88CA6b61B5EF500472Ca606DF89';
 
+const token_requestAppId =
+    '0x35202e36ef42162f9847025dfc040c60bfa5d7c5c373cb28e30849e1db16ba77';
+const token_requestBase =
+    network === 'rinkeby'
+        ? '0x9bb880490625E1a0222d47f6b6409110E634691b'
+        : '0x60aaD13723BF122254707612455c10AE9DF517b2';
 
-const delayAppId = '0x1c2b93ad1c4d4302f0169c8f596ce518e4a3324b1fed90c2d80a549a072bcd4e';
-const delayBase = (network === 'rinkeby')
-    ? '0x214044cc3fa7a3ECEF0bC9052Fe9B296585E3275'
-    : '0x07759C39BbC1F88CA6b61B5EF500472Ca606DF89'
-
-
-const token_requestAppId = '0x35202e36ef42162f9847025dfc040c60bfa5d7c5c373cb28e30849e1db16ba77';
-const token_requestBase = (network === 'rinkeby')
-    ? '0x9bb880490625E1a0222d47f6b6409110E634691b'
-    : '0x60aaD13723BF122254707612455c10AE9DF517b2'
-
-const redemptionsAppId = '0x743bd419d5c9061290b181b19e114f36e9cc9ddb42b4e54fc811edb22eb85e9d';
-const redemptionsBase = (network === 'rinkeby')
-    ? '0xe47d2A5D3319E30D1078DB181966707d8a58dE98'
-    : '0x5B1f69304651b3e7a9789D27e84f1F7336c356e8'
-
+const redemptionsAppId =
+    '0x743bd419d5c9061290b181b19e114f36e9cc9ddb42b4e54fc811edb22eb85e9d';
+const redemptionsBase =
+    network === 'rinkeby'
+        ? '0xe47d2A5D3319E30D1078DB181966707d8a58dE98'
+        : '0x5B1f69304651b3e7a9789D27e84f1F7336c356e8';
 
 const newAppInstanceSignature = 'newAppInstance(bytes32,address,bytes,bool)';
-const createPermissionSignature = 'createPermission(address,address,bytes32,address)';
-const fdai_managerInitSignature = 'initialize(address,bool,uint256)'; // 
+const createPermissionSignature =
+    'createPermission(address,address,bytes32,address)';
+const fdai_managerInitSignature = 'initialize(address,bool,uint256)'; //
 const delayInitSignature = 'initialize(uint64)';
 const token_requestInitSignature = 'initialize(address,address,address[])'; // _tokenManager, _vault,_acceptedDepositTokens
 const redemptionsInitSignature = 'initialize(address,address,address[])'; // _vault, _tokenManager,_redeemableTokens
-const vaultInitSignature = 'initialize()'; 
+const vaultInitSignature = 'initialize()';
 const newTokenAndInstance =
     'newTokenAndInstance(string,string,string,address[],uint256[],uint64[3],uint64,bool)';
 
@@ -150,7 +157,7 @@ async function connectDAO(dao, network) {
                 org = await connect(dao, 'thegraph', { network: network });
                 //console.log(org);
                 clearIntervalAsync(timeout);
-                spinner.succeed('Apps Fetched')
+                spinner.succeed('Apps Fetched');
                 resolve(org);
             }
         }, 1000);
@@ -374,6 +381,42 @@ async function main() {
             `Dao Deployed: https://${network}.aragon.org/#/${daoAddress}`
         );
 
+        // generating counterfactual addresses
+        const counterfactualSpinner = Ora(
+            'Calculating counterfactual Address...'
+        ).start();
+        const vaultSpinner = Ora('Calculating Vault Address...').start();
+        const vault = await counterfactualAddress(daoAddress, 0, network);
+        vaultSpinner.succeed(`Vault: ${vault}`);
+
+        const delaySpinner = Ora('Calculating delay Address...').start();
+        const delay = await counterfactualAddress(daoAddress, 1, network);
+        delaySpinner.succeed(`delay: ${delay}`);
+
+        const fdai_manager = await counterfactualAddress(
+            daoAddress,
+            2,
+            network
+        );
+
+        const token_requestSpinner = Ora(
+            'Calculating token_request Address...'
+        ).start();
+        const token_request = await counterfactualAddress(
+            daoAddress,
+            3,
+            network
+        );
+        token_requestSpinner.succeed(`token_request: ${token_request}`);
+
+        const redemptionsSpinner = Ora(
+            'Calculating redemptions address...'
+        ).start();
+        const redemptions = await counterfactualAddress(daoAddress, 4, network);
+        redemptionsSpinner.succeed(`redemptions: ${redemptions}`);
+
+        counterfactualSpinner.succeed('Counterfactual Addresses calculated');
+
         // deploy fDAI-1 Token
         const minimeFactory = new Ethers.ContractFactory(
             minimeAbi,
@@ -393,17 +436,6 @@ async function main() {
         );
         fdaiSpinner.succeed(`fDAI-1 Deployed: ${minimeContract.address}`);
 
-        // Calculate fDAI Manager Address
-        const tokenmanagerSpinner = Ora(
-            'Calculating fDAI Token Manager Address...'
-        ).start();
-        const fdai_manager = await counterfactualAddress(
-            daoAddress,
-            2,
-            network
-        );
-        tokenmanagerSpinner.succeed(`fDAI-1 Manager: ${fdai_manager}`);
-
         // change controller
         const controlerSpinner = Ora(
             `Changing fDAI-1 controller to ${fdai_manager}`
@@ -420,30 +452,6 @@ async function main() {
         const org = await connectDAO(daoAddress, network);
         //console.log(org);
         const apps = await getApps(org);
-
-        const vaultSpinner = Ora('Calculating Vault Address...').start();
-        const vault = await counterfactualAddress(daoAddress, 0, network);
-        vaultSpinner.succeed(`Vault: ${vault}`);
-
-        const delaySpinner = Ora('Calculating delay Address...').start();
-        const delay = await counterfactualAddress(daoAddress, 1, network);
-        delaySpinner.succeed(`delay: ${delay}`);
-
-        const token_requestSpinner = Ora(
-            'Calculating token_request Address...'
-        ).start();
-        const token_request = await counterfactualAddress(
-            daoAddress,
-            3,
-            network
-        );
-        token_requestSpinner.succeed(`token_request: ${token_request}`);
-
-        const redemptionsSpinner = Ora(
-            'Calculating redemptions address...'
-        ).start();
-        const redemptions = await counterfactualAddress(daoAddress, 4, network);
-        redemptionsSpinner.succeed(`redemptions: ${redemptions}`);
 
         const aclSpinner = Ora('Calculating acl address...').start();
         const acl = await getAcl(org);
