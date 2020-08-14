@@ -3,14 +3,14 @@ const Ethers = require('ethers');
 const Namehash = require('eth-ens-namehash');
 const EthProvider = require('eth-provider');
 const Ora = require('ora');
-const RLP = require('rlp')
-const {keccak256} = require('web3-utils');
-
+const RLP = require('rlp');
+const { keccak256 } = require('web3-utils');
+const { connect, App, Organization } = require('@aragon/connect');
 
 // ABIs
 const aclAbi = require('./abi/acl.json');
 const bareTemplateAbi = require('./abi/bareTemplate.json');
-const companyTemplateAbi = require('./abi/companyTemplate.json')
+const companyTemplateAbi = require('./abi/companyTemplate.json');
 const financeAbi = require('./abi/finance.json');
 const kernelAbi = require('./abi/kernel.json');
 const minimeAbi = require('./abi/minime.json');
@@ -29,7 +29,8 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const network = 'rinkeby';
 
 // signatures
-const newTokenAndInstance = 'newTokenAndInstance(string,string,string,address[],uint256[],uint64[3],uint64,bool)'
+const newTokenAndInstance =
+    'newTokenAndInstance(string,string,string,address[],uint256[],uint64[3],uint64,bool)';
 
 // App info; we need these for installation.
 // APP_ID: The appId is just the namehash of the aragonpm name. If the app lives
@@ -43,78 +44,79 @@ const newTokenAndInstance = 'newTokenAndInstance(string,string,string,address[],
 // NOTE: These correspond to the rinkeby network.
 // ACL
 const ACL_CREATE_PERMISSIONS_ROLE =
-  '0x0b719b33c83b8e5d300c521cb8b54ae9bd933996a14bef8c2f4e0285d2d2400a';
+    '0x0b719b33c83b8e5d300c521cb8b54ae9bd933996a14bef8c2f4e0285d2d2400a';
 // Finance
 const FINANCE_APP_ID = Namehash.hash('finance.aragonpm.eth');
 const FINANCE_IMPL_ADDRESS = '0x94D3013A8700E8B168f66529aD143590CC6b259d';
 const FINANCE_CREATE_PAYMENTS_ROLE =
-  '0x5de467a460382d13defdc02aacddc9c7d6605d6d4e0b8bd2f70732cae8ea17bc';
+    '0x5de467a460382d13defdc02aacddc9c7d6605d6d4e0b8bd2f70732cae8ea17bc';
 const FINANCE_EXECUTE_PAYMENTS_ROLE =
-  '0x563165d3eae48bcb0a092543ca070d989169c98357e9a1b324ec5da44bab75fd';
+    '0x563165d3eae48bcb0a092543ca070d989169c98357e9a1b324ec5da44bab75fd';
 const FINANCE_MANAGE_PAYMENTS_ROLE =
-  '0x30597dd103acfaef0649675953d9cb22faadab7e9d9ed57acc1c429d04b80777';
+    '0x30597dd103acfaef0649675953d9cb22faadab7e9d9ed57acc1c429d04b80777';
 // Kernel
 const KERNEL_MANAGE_APPS_ROLE =
-  '0xb6d92708f3d4817afc106147d969e229ced5c46e65e0a5002a0d391287762bd0';
+    '0xb6d92708f3d4817afc106147d969e229ced5c46e65e0a5002a0d391287762bd0';
 // Token manager
 const TOKEN_MANAGER_APP_ID = Namehash.hash('token-manager.aragonpm.eth');
 const TOKEN_MANAGER_IMPL_ADDRESS = '0xE775468F3Ee275f740A22EB9DD7aDBa9b7933Aa0';
 const TOKEN_MANAGER_MINT_ROLE =
-  '0x154c00819833dac601ee5ddded6fda79d9d8b506b911b3dbd54cdb95fe6c3686';
+    '0x154c00819833dac601ee5ddded6fda79d9d8b506b911b3dbd54cdb95fe6c3686';
 // Vault
 const VAULT_APP_ID = Namehash.hash('vault.aragonpm.eth');
 const VAULT_IMPL_ADDRESS = '0x35c5Abf253C873deE9ee4fe2687CD378Eff1263e';
 const VAULT_TRANSFER_ROLE =
-  '0x8502233096d909befbda0999bb8ea2f3a6be3c138b9fbf003752a4c8bce86f6c';
+    '0x8502233096d909befbda0999bb8ea2f3a6be3c138b9fbf003752a4c8bce86f6c';
 // Voting
 const VOTING_APP_ID = Namehash.hash('voting.aragonpm.eth');
 const VOTING_IMPL_ADDRESS = '0xb4fa71b3352D48AA93D34d085f87bb4aF0cE6Ab5';
 const VOTING_CREATE_VOTES_ROLE =
-  '0xe7dcd7275292e064d090fbc5f3bd7995be23b502c1fed5cd94cfddbbdcd32bbc';
+    '0xe7dcd7275292e064d090fbc5f3bd7995be23b502c1fed5cd94cfddbbdcd32bbc';
 
 // key
-const secret = require(`/home/${require('os').userInfo().username}/.aragon/mnemonic.json`)
-const key = secret.mnemonic
+const secret = require(`/home/${
+    require('os').userInfo().username
+}/.aragon/mnemonic.json`);
+const key = secret.mnemonic;
 
 function bigNum(number) {
-  return Ethers.utils.bigNumberify(number);
+    return Ethers.utils.bigNumberify(number);
 }
 
 async function getDaoAddress(
-  selectedFilter,
-  templateContract,
-  transactionHash,
+    selectedFilter,
+    templateContract,
+    transactionHash
 ) {
-  return new Promise((resolve, reject) => {
-    const desiredFilter = templateContract.filters[selectedFilter]();
+    return new Promise((resolve, reject) => {
+        const desiredFilter = templateContract.filters[selectedFilter]();
 
-    templateContract.on(desiredFilter, (contractAddress, event) => {
-      if (event.transactionHash === transactionHash) {
-        resolve(contractAddress);
-      }
+        templateContract.on(desiredFilter, (contractAddress, event) => {
+            if (event.transactionHash === transactionHash) {
+                resolve(contractAddress);
+            }
+        });
     });
-  });
 }
 
 async function getAppAddress(
-  selectedFilter,
-  templateContract,
-  transactionHash,
+    selectedFilter,
+    templateContract,
+    transactionHash
 ) {
-  return new Promise((resolve, reject) => {
-    const desiredFilter = templateContract.filters[selectedFilter]();
+    return new Promise((resolve, reject) => {
+        const desiredFilter = templateContract.filters[selectedFilter]();
 
-    templateContract.on(
-      desiredFilter,
-      (appProxyAddress, isUpgradeable, appId, event) => {
-        if (event.transactionHash === transactionHash) {
-          resolve(appProxyAddress);
-        }
-      },
-    );
-  });
+        templateContract.on(
+            desiredFilter,
+            (appProxyAddress, isUpgradeable, appId, event) => {
+                if (event.transactionHash === transactionHash) {
+                    resolve(appProxyAddress);
+                }
+            }
+        );
+    });
 }
-
 
 async function buildNonceForAddress(_address, _index) {
     const txCount = await provider.getTransactionCount(_address);
@@ -131,90 +133,115 @@ function calculateNewProxyAddress(_daoAddress, _nonce) {
 
 async function counterfactualAddress(_address, _index, network) {
     provider = Ethers.getDefaultProvider(network);
-    const nonce = await buildNonceForAddress(_address, _index, provider)
-    return calculateNewProxyAddress(_address, nonce)
+    const nonce = await buildNonceForAddress(_address, _index, provider);
+    return calculateNewProxyAddress(_address, nonce);
 }
 
 async function encodeContractInteraction(contract, signature, params) {
-    const data = await encodeActCall(signature, params)
+    const data = await encodeActCall(signature, params);
     return {
         to: contract,
         calldata: data
-    }
+    };
 }
 
-
 async function main() {
-  try {
-    const wallet = new Ethers.Wallet.fromMnemonic(key)
-    const ethersProvider = Ethers.getDefaultProvider(network, {
-        infura: 'e22eadb98be944d18e48ab4bec7ecf3f'
-    })
-    const ethersSigner = wallet.connect(ethersProvider)
+    try {
+        const wallet = new Ethers.Wallet.fromMnemonic(key);
+        const ethersProvider = Ethers.getDefaultProvider(network, {
+            infura: 'e22eadb98be944d18e48ab4bec7ecf3f'
+        });
+        const ethersSigner = wallet.connect(ethersProvider);
 
-    // Account used to initialize permissions
-    const dictatorAccount = await ethersSigner.address;
-    console.log(
-      Chalk.cyan(`Using ${dictatorAccount} as account for permissions`),
-    );
+        // Account used to initialize permissions
+        const dictatorAccount = await ethersSigner.address;
+        console.log(
+            Chalk.cyan(`Using ${dictatorAccount} as account for permissions`)
+        );
 
-    const companyTemplateContract = new Ethers.Contract(
-        COMPANY_TEMPLATE_ADDRESS,
-        companyTemplateAbi,
-        ethersSigner,
-    );
+/*         const deploySpinner = Ora('Deploying Dao...').start();
+        const companyTemplateContract = new Ethers.Contract(
+            COMPANY_TEMPLATE_ADDRESS,
+            companyTemplateAbi,
+            ethersSigner
+        );
 
-    // Get the proper function we want to call; ethers will not get the overload
-    // automatically, so we take the proper one from the object, and then call it.
-    const tx = await companyTemplateContract[newTokenAndInstance](
-        'Token',
-        'TKN',
-        'Testing' + Math.random(),
-        ['0x75B98710D5995AB9992F02492B7568b43133161D'],
-        ['1000000000000000000'],
-        ['500000000000000000', '250000000000000000', 86400],
-        0,
-        true
-    );
-    // Filter and get the DAO address from the events.
-    const daoAddress = await getDaoAddress(
-      'DeployDao',
-      companyTemplateContract,
-      tx.hash,
-    );
+        // Get the proper function we want to call; ethers will not get the overload
+        // automatically, so we take the proper one from the object, and then call it.
+        const tx = await companyTemplateContract[newTokenAndInstance](
+            'Token',
+            'TKN',
+            'Testing' + Math.random(),
+            ['0x75B98710D5995AB9992F02492B7568b43133161D'],
+            ['1000000000000000000'],
+            ['500000000000000000', '250000000000000000', 86400],
+            0,
+            true
+        );
+        // Filter and get the DAO address from the events.
+        const daoAddress = await getDaoAddress(
+            'DeployDao',
+            companyTemplateContract,
+            tx.hash
+        );
 
-    // Log the DAO Address
-    console.log(`Dao Deployed: ${daoAddress}`);
+        // Log the DAO Address
+        deploySpinner.succeed(
+            `Dao Deployed: https://${network}/aragon.org/#/${daoAddress}`
+        );
 
-    // deploy fDAI-1 Token
-    const minimeFactory = new Ethers.ContractFactory(
-        minimeAbi,
-        minimeBytecode.object,
-        ethersSigner,
-      );
-  
-    const fdaiSpinner = Ora('Deploying fDAI-1 Token...').start();
-    const minimeContract = await minimeFactory.deploy(
-        MINIME_FACTORY_ADDRESS,
-        ZERO_ADDRESS,
-        0,
-        'fDAI-1 Token',
-        18,
-        'FDAI1',
-        true,
-      );
+        // deploy fDAI-1 Token
+        const minimeFactory = new Ethers.ContractFactory(
+            minimeAbi,
+            minimeBytecode.object,
+            ethersSigner
+        );
 
-    // Calculate fDAI Manager Address
-    fdaiSpinner.succeed(`fDAI-1 Token Deployed ${minimeContract.address}`);
-    const tokenmanagerSpinner = Ora('Calculating fDAI Token Manager Address...').start();
-    const fdai_manager = await counterfactualAddress(daoAddress, 0, network);
-    tokenmanagerSpinner.succeed(`fDAI-1 Manager: ${fdai_manager}`)
- 
-  } catch (e) {
-    console.log(e);
-  } finally {
-    process.exit();
-  }
+        const fdaiSpinner = Ora('Deploying fDAI-1 Token...').start();
+        const minimeContract = await minimeFactory.deploy(
+            MINIME_FACTORY_ADDRESS,
+            ZERO_ADDRESS,
+            0,
+            'fDAI-1 Token',
+            18,
+            'FDAI1',
+            true
+        );
+        fdaiSpinner.succeed(`fDAI-1 Token Deployed ${minimeContract.address}`);
+
+        // Calculate fDAI Manager Address
+        const tokenmanagerSpinner = Ora(
+            'Calculating fDAI Token Manager Address...'
+        ).start();
+        const fdai_manager = await counterfactualAddress(
+            daoAddress,
+            0,
+            network
+        );
+        tokenmanagerSpinner.succeed(`fDAI-1 Manager: ${fdai_manager}`);
+
+        // change controller
+
+        // install
+ */
+        // connect DAO
+        const org = await connect(
+            '0xA6eb1868d72753567d71B2a3466a1b549Df83312',
+            'thegraph',
+            {
+              chainId: 4,
+              orgSubgraphUrl: 'https://api.thegraph.com/subgraphs/name/aragon/aragon-rinkeby'
+            }
+        );
+        console.log(org);
+        const apps = await org.apps();
+        console.log(apps);
+        connectSpinner.succeed('done');
+    } catch (e) {
+        console.log(e);
+    } finally {
+        process.exit();
+    }
 }
 
 main();
