@@ -1,4 +1,3 @@
-const Chalk = require('chalk');
 const Ethers = require('ethers');
 const Ora = require('ora');
 const RLP = require('rlp');
@@ -49,18 +48,10 @@ const {
     daoId,
     holders,
     balances,
-    voteSettings,
-    daiAddress
-} = require('./daoSettings');
+    voteSettings
+} = require('../daoSettings');
 
-const { companyTemplateAbi, minimeAbi, minimeBytecode } = abis();
-
-function abis() {
-    const companyTemplateAbi = require('./abi/companyTemplate.json');
-    const minimeAbi = require('./abi/minime.json');
-    const minimeBytecode = require('./bytecode/minime.json');
-    return { companyTemplateAbi, minimeAbi, minimeBytecode };
-}
+const { companyTemplateAbi, minimeAbi, minimeBytecode } = require('./abis');
 
 async function getDaoAddress(
     selectedFilter,
@@ -82,7 +73,6 @@ async function buildNonceForAddress(_address, _index, provider) {
     const txCount = await provider.getTransactionCount(_address);
     return `0x${(txCount + _index).toString(16)}`;
 }
-
 function calculateNewProxyAddress(_daoAddress, _nonce) {
     const rlpEncoded = RLP.encode([_daoAddress, _nonce]);
     const contractAddressLong = keccak256(rlpEncoded);
@@ -145,7 +135,7 @@ async function getApps(dao) {
     };
 }
 
-async function bootstrapApps(
+async function installScript(
     fdaiAddress,
     daiAddress,
     fdaiManagerAddress,
@@ -312,7 +302,7 @@ function getSigner() {
 }
 
 async function createCompanyDao(ethersSigner) {
-    const deploySpinner = Ora('Deploying Dao...').start();
+    const deploySpinner = Ora('Deploying Dao...\n').start();
     const companyTemplateContract = new Ethers.Contract(
         COMPANY_TEMPLATE_ADDRESS,
         companyTemplateAbi,
@@ -376,56 +366,13 @@ async function changeTokenControler(minimeContract, fdai_manager) {
     return changeControllerTx;
 }
 
-async function main() {
-    // 1. get Signer
-    const ethersSigner = getSigner();
-    const deployer = await ethersSigner.address;
-    console.log(`Using ${Chalk.cyan(deployer)}`);
-
-    // 2. Deploy Company DAO
-    const daoAddress = await createCompanyDao(ethersSigner);
-
-    // 3. generating counterfactual addresses
-    const counterfactualSpinner = Ora('Counterfactual Addresses..').start();
-    const vault = await counterfactualAddress(daoAddress, 0, network);
-    const delay = await counterfactualAddress(daoAddress, 1, network);
-    const fdai_manager = await counterfactualAddress(daoAddress, 2, network);
-    const token_request = await counterfactualAddress(daoAddress, 3, network);
-    const redemptions = await counterfactualAddress(daoAddress, 4, network);
-    counterfactualSpinner.succeed('Counterfactual Addresses calculated');
-
-    // 4. deploy fDAI-1 Token
-    const minimeContract = await deployToken(ethersSigner);
-
-    // 5. change controller
-    await changeTokenControler(minimeContract, fdai_manager);
-
-    // 6. connect DAO
-    const org = await connectDAO(daoAddress, network);
-    const apps = await getApps(org);
-    const { voting, acl } = apps;
-
-    // 7. Install apps and permissions
-    await bootstrapApps(
-        minimeContract.address,
-        daiAddress,
-        fdai_manager,
-        vault,
-        delay,
-        token_request,
-        redemptions,
-        voting,
-        daoAddress,
-        acl,
-        network
-    );
-}
-
-main()
-    .then(() => {
-        process.exit();
-    })
-    .catch((e) => {
-        console.error(e);
-        process.exit();
-    });
+module.exports = {
+    changeTokenControler,
+    deployToken,
+    createCompanyDao,
+    getSigner,
+    installScript,
+    getApps,
+    connectDAO,
+    counterfactualAddress
+};
