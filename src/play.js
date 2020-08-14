@@ -147,7 +147,7 @@ async function connectDAO(dao, network) {
             spinner.text = `waiting ${timer} seconds for DAO to be indexed at TheGraph.com`;
             if (timer === 0) {
                 org = await connect(dao, 'thegraph', { network: network });
-                console.log(org);
+                //console.log(org);
                 clearIntervalAsync(timeout);
                 resolve(org);
             }
@@ -449,7 +449,7 @@ async function main() {
 
         const bootstrapSpinner = Ora('bootstrap _Prtcl Apps').start();
         await bootstrapApps(
-            minimeContract,
+            minimeContract.address,
             daiAddress,
             fdai_manager,
             vault,
