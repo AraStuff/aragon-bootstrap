@@ -9,6 +9,7 @@
   "license": "MIT",
   "dependencies": {
     "@aragon/connect": "^0.5.0",
+    "@aragon/test-helpers": "^2.1.0",
     "chalk": "^4.0.0",
     "eth-ens-namehash": "^2.0.8",
     "eth-provider": "^0.2.5",

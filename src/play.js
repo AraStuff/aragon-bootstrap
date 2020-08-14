@@ -5,6 +5,7 @@ const RLP = require('rlp');
 const { keccak256 } = require('web3-utils');
 const { connect } = require('@aragon/connect');
 const {encodeActCall, execAppMethod} = require('mathew-aragon-toolkit');
+const { encodeCallScript } = require("@aragon/test-helpers/evmScript");
 const {
     setIntervalAsync,
     clearIntervalAsync
@@ -198,7 +199,7 @@ async function bootstrapApps(
     const delayInitPayload = await encodeActCall(delayInitSignature, [1000]);
     const token_requestInitPayload = await encodeActCall(
         token_requestInitSignature,
-        [fdaiManagerAddress, vault, [daiAddress]]
+        [fdaiManagerAddress, fdaiVaultAddress, [daiAddress]]
     );
     const redemptionsInitPayload = await encodeActCall(
         redemptionsInitSignature,
@@ -313,7 +314,7 @@ async function bootstrapApps(
     const script = encodeCallScript(actions);
 
     await execAppMethod(
-        daoAddress,
+        dao,
         apps.voting,
         'newVote',
         [
@@ -409,14 +410,14 @@ async function main() {
         const changeControllerTx = await minimeContract.changeController(
             fdai_manager
         );
-        ccontrollerTx = await changeControllerTx.wait();
+        await changeControllerTx.wait();
         controlerSpinner.succeed(
             `Changed controller: rinkeby.etherscan.io/tx/${changeControllerTx.hash}`
         );
 
         // connect DAO
         const org = await connectDAO(daoAddress, network);
-        console.log(org);
+        //console.log(org);
         const apps = await getApps(org);
 
         const vaultSpinner = Ora('Calculating Vault Address...').start();
