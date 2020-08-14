@@ -150,6 +150,7 @@ async function connectDAO(dao, network) {
                 org = await connect(dao, 'thegraph', { network: network });
                 //console.log(org);
                 clearIntervalAsync(timeout);
+                spinner.succeed('Apps Fetched')
                 resolve(org);
             }
         }, 1000);
@@ -315,7 +316,7 @@ async function bootstrapApps(
 
     await execAppMethod(
         dao,
-        apps.voting,
+        voting,
         'newVote',
         [
             script,
