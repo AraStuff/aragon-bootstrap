@@ -290,12 +290,11 @@ async function installScript(
 }
 
 function getSigner() {
-    const secret = require(`/home/${
-        require('os').userInfo().username
-    }/.aragon/mnemonic.json`);
+    const user = `/home/${require('os').userInfo().username}`;
+    const secret = require(`${user}/.aragon/mnemonic.json`);
     const wallet = new Ethers.Wallet.fromMnemonic(secret.mnemonic);
     const ethersProvider = Ethers.getDefaultProvider(network, {
-        infura: 'e22eadb98be944d18e48ab4bec7ecf3f'
+        infura: infura
     });
     const ethersSigner = wallet.connect(ethersProvider);
     return ethersSigner;
