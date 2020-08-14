@@ -385,13 +385,9 @@ async function main() {
         const counterfactualSpinner = Ora(
             'Calculating counterfactual Address...'
         ).start();
-        const vaultSpinner = Ora('Calculating Vault Address...').start();
         const vault = await counterfactualAddress(daoAddress, 0, network);
-        vaultSpinner.succeed(`Vault: ${vault}`);
 
-        const delaySpinner = Ora('Calculating delay Address...').start();
         const delay = await counterfactualAddress(daoAddress, 1, network);
-        delaySpinner.succeed(`delay: ${delay}`);
 
         const fdai_manager = await counterfactualAddress(
             daoAddress,
@@ -399,22 +395,14 @@ async function main() {
             network
         );
 
-        const token_requestSpinner = Ora(
-            'Calculating token_request Address...'
-        ).start();
         const token_request = await counterfactualAddress(
             daoAddress,
             3,
             network
         );
-        token_requestSpinner.succeed(`token_request: ${token_request}`);
 
-        const redemptionsSpinner = Ora(
-            'Calculating redemptions address...'
-        ).start();
         const redemptions = await counterfactualAddress(daoAddress, 4, network);
-        redemptionsSpinner.succeed(`redemptions: ${redemptions}`);
-
+        
         counterfactualSpinner.succeed('Counterfactual Addresses calculated');
 
         // deploy fDAI-1 Token
