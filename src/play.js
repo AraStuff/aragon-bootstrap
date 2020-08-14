@@ -11,75 +11,56 @@ const {
     clearIntervalAsync
 } = require('set-interval-async/fixed');
 
-// ABIs
+const {
+    COMPANY_TEMPLATE_ADDRESS,
+    MINIME_FACTORY_ADDRESS
+} = require('./factoryAddresses');
 
-const companyTemplateAbi = require('./abi/companyTemplate.json');
+const {
+    vaultInitSignature,
+    tokenManagerInitSignature,
+    delayInitSignature,
+    tokenRequestInitSignature,
+    redemptionsInitSignature,
+    newAppInstanceSignature,
+    createPermissionSignature,
+    newTokenAndInstance
+} = require('./signatures');
 
-const minimeAbi = require('./abi/minime.json');
-const minimeBytecode = require('./bytecode/minime.json');
+const {
+    vaultAppId,
+    vaultBase,
+    delayAppId,
+    delayBase,
+    tokenManagerAppId,
+    tokenManagerBase,
+    tokenRequestAppId,
+    tokenRequestBase,
+    redemptionsAppId,
+    redemptionsBase
+} = require('./apm');
 
-// Bare Template address in aragonPM (rinkeby)
-const COMPANY_TEMPLATE_ADDRESS = '0xA3809a525B92a8A290E5d704f9Be6B5046506A7b';
-const MINIME_FACTORY_ADDRESS = '0x6ffeB4038f7F077C4D20EAF1706980CaeC31e2BF';
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-const daiAddress = '0x0527e400502d0cb4f214dd0d2f2a323fc88ff924';
-const community_dao = '0x75B98710D5995AB9992F02492B7568b43133161D';
+const {
+    community_dao,
+    ZERO_ADDRESS,
+    network,
+    tokenName,
+    symbol,
+    daoId,
+    holders,
+    balances,
+    voteSettings,
+    daiAddress
+} = require('./daoSettings');
 
-// DAO settings
-const network = 'rinkeby';
+const { companyTemplateAbi, minimeAbi, minimeBytecode } = abis();
 
-// signatures
-const vaultAppId =
-    '0x7e852e0fcfce6551c13800f1e7476f982525c2b5277ba14b24339c68416336d1';
-const vaultBase =
-    network === 'rinkeby'
-        ? '0x35c5Abf253C873deE9ee4fe2687CD378Eff1263e'
-        : '0x03AD07802BBA1b6FA293E593a42845E6569A7470';
-
-const fdai_managerAppId =
-    '0x6b20a3010614eeebf2138ccec99f028a61c811b3b1a3343b6ff635985c75c91f';
-const fdai_managerBase =
-    network === 'rinkeby'
-        ? '0xE775468F3Ee275f740A22EB9DD7aDBa9b7933Aa0'
-        : '0xde3A93028F2283cc28756B3674BD657eaFB992f4';
-
-const delayAppId =
-    '0x1c2b93ad1c4d4302f0169c8f596ce518e4a3324b1fed90c2d80a549a072bcd4e';
-const delayBase =
-    network === 'rinkeby'
-        ? '0x214044cc3fa7a3ECEF0bC9052Fe9B296585E3275'
-        : '0x07759C39BbC1F88CA6b61B5EF500472Ca606DF89';
-
-const token_requestAppId =
-    '0x35202e36ef42162f9847025dfc040c60bfa5d7c5c373cb28e30849e1db16ba77';
-const token_requestBase =
-    network === 'rinkeby'
-        ? '0x9bb880490625E1a0222d47f6b6409110E634691b'
-        : '0x60aaD13723BF122254707612455c10AE9DF517b2';
-
-const redemptionsAppId =
-    '0x743bd419d5c9061290b181b19e114f36e9cc9ddb42b4e54fc811edb22eb85e9d';
-const redemptionsBase =
-    network === 'rinkeby'
-        ? '0xe47d2A5D3319E30D1078DB181966707d8a58dE98'
-        : '0x5B1f69304651b3e7a9789D27e84f1F7336c356e8';
-
-const newAppInstanceSignature = 'newAppInstance(bytes32,address,bytes,bool)';
-const createPermissionSignature =
-    'createPermission(address,address,bytes32,address)';
-const fdai_managerInitSignature = 'initialize(address,bool,uint256)'; //
-const delayInitSignature = 'initialize(uint64)';
-const token_requestInitSignature = 'initialize(address,address,address[])'; // _tokenManager, _vault,_acceptedDepositTokens
-const redemptionsInitSignature = 'initialize(address,address,address[])'; // _vault, _tokenManager,_redeemableTokens
-const vaultInitSignature = 'initialize()';
-const newTokenAndInstance =
-    'newTokenAndInstance(string,string,string,address[],uint256[],uint64[3],uint64,bool)';
-
-// key
-const secret = require(`/home/${
-    require('os').userInfo().username
-}/.aragon/mnemonic.json`);
-const key = secret.mnemonic;
+function abis() {
+    const companyTemplateAbi = require('./abi/companyTemplate.json');
+    const minimeAbi = require('./abi/minime.json');
+    const minimeBytecode = require('./bytecode/minime.json');
+    return { companyTemplateAbi, minimeAbi, minimeBytecode };
+}
 
 async function getDaoAddress(
     selectedFilter,
@@ -94,25 +75,6 @@ async function getDaoAddress(
                 resolve(contractAddress);
             }
         });
-    });
-}
-
-async function getAppAddress(
-    selectedFilter,
-    templateContract,
-    transactionHash
-) {
-    return new Promise((resolve, reject) => {
-        const desiredFilter = templateContract.filters[selectedFilter]();
-
-        templateContract.on(
-            desiredFilter,
-            (appProxyAddress, isUpgradeable, appId, event) => {
-                if (event.transactionHash === transactionHash) {
-                    resolve(appProxyAddress);
-                }
-            }
-        );
     });
 }
 
@@ -144,15 +106,13 @@ async function encodeContractInteraction(contract, signature, params) {
 }
 
 async function connectDAO(dao, network) {
-    const spinner = Ora(
-        `waiting 180 seconds for DAO to be indexed on TheGraph.com`
-    ).start();
+    const spinner = Ora(`waiting 180 seconds for DAO to be indexed`).start();
     const p = new Promise(async (resolve, reject) => {
         let timer = 120;
         let org;
         const timeout = setIntervalAsync(async () => {
             timer = timer - 1;
-            spinner.text = `waiting ${timer} seconds for DAO to be indexed at TheGraph.com`;
+            spinner.text = `waiting ${timer} seconds for DAO to be indexed`;
             if (timer === 0) {
                 org = await connect(dao, 'thegraph', { network: network });
                 //console.log(org);
@@ -169,21 +129,20 @@ async function connectDAO(dao, network) {
 
 async function getApps(dao) {
     const apps = await dao.apps();
-    return {
-        token_manager: apps.find((app) => app.name === 'token-manager').address,
-        voting: apps.find((app) => app.name === 'voting').address,
-        agent: apps.find((app) => app.name === 'agent').address,
-        finance: apps.find((app) => app.name === 'finance').address
-    };
-}
-
-async function getAcl(org) {
-    const permissions = await org.permissions();
-    return permissions.filter(
+    const permissions = await dao.permissions();
+    const acl = permissions.filter(
         (p) =>
             p.roleHash ===
             `0x0b719b33c83b8e5d300c521cb8b54ae9bd933996a14bef8c2f4e0285d2d2400a`
     )[0].appAddress;
+
+    return {
+        token_manager: apps.find((app) => app.name === 'token-manager').address,
+        voting: apps.find((app) => app.name === 'voting').address,
+        agent: apps.find((app) => app.name === 'agent').address,
+        finance: apps.find((app) => app.name === 'finance').address,
+        acl: acl
+    };
 }
 
 async function bootstrapApps(
@@ -196,17 +155,18 @@ async function bootstrapApps(
     redemptionsAddress,
     voting,
     dao,
-    acl
+    acl,
+    network
 ) {
-    // app initialisation payloads
+    const bootstrapSpinner = Ora('bootstrap _Prtcl Apps\n').start();
     const vaultInitPayload = await encodeActCall(vaultInitSignature, []);
     const fdai_managerInitPayload = await encodeActCall(
-        fdai_managerInitSignature,
+        tokenManagerInitSignature,
         [fdaiAddress, true, 0]
     );
     const delayInitPayload = await encodeActCall(delayInitSignature, [1000]);
     const token_requestInitPayload = await encodeActCall(
-        token_requestInitSignature,
+        tokenRequestInitSignature,
         [fdaiManagerAddress, fdaiVaultAddress, [daiAddress]]
     );
     const redemptionsInitPayload = await encodeActCall(
@@ -228,14 +188,14 @@ async function bootstrapApps(
             true
         ]),
         encodeContractInteraction(dao, newAppInstanceSignature, [
-            fdai_managerAppId,
-            fdai_managerBase,
+            tokenManagerAppId,
+            tokenManagerBase,
             fdai_managerInitPayload,
             false
         ]),
         encodeContractInteraction(dao, newAppInstanceSignature, [
-            token_requestAppId,
-            token_requestBase,
+            tokenRequestAppId,
+            tokenRequestBase,
             token_requestInitPayload,
             true
         ]),
@@ -334,138 +294,138 @@ async function bootstrapApps(
         () => {},
         network
     );
+    bootstrapSpinner.succeed(
+        `Vote at http://${network}.aragon.org/#/${dao}/${voting}`
+    );
+}
+
+function getSigner() {
+    const secret = require(`/home/${
+        require('os').userInfo().username
+    }/.aragon/mnemonic.json`);
+    const wallet = new Ethers.Wallet.fromMnemonic(secret.mnemonic);
+    const ethersProvider = Ethers.getDefaultProvider(network, {
+        infura: 'e22eadb98be944d18e48ab4bec7ecf3f'
+    });
+    const ethersSigner = wallet.connect(ethersProvider);
+    return ethersSigner;
+}
+
+async function createCompanyDao(ethersSigner) {
+    const deploySpinner = Ora('Deploying Dao...').start();
+    const companyTemplateContract = new Ethers.Contract(
+        COMPANY_TEMPLATE_ADDRESS,
+        companyTemplateAbi,
+        ethersSigner
+    );
+
+    const tx = await companyTemplateContract[newTokenAndInstance](
+        tokenName,
+        symbol,
+        daoId,
+        holders,
+        balances,
+        voteSettings,
+        0,
+        true
+    );
+
+    const daoAddress = await getDaoAddress(
+        'DeployDao',
+        companyTemplateContract,
+        tx.hash
+    );
+
+    deploySpinner.succeed(
+        `Dao Deployed: https://${network}.aragon.org/#/${daoAddress}`
+    );
+    return daoAddress;
+}
+
+async function deployToken(ethersSigner) {
+    const fdaiSpinner = Ora('Deploying fDAI-1 Token...').start();
+    const minimeFactory = new Ethers.ContractFactory(
+        minimeAbi,
+        minimeBytecode.object,
+        ethersSigner
+    );
+    const minimeContract = await minimeFactory.deploy(
+        MINIME_FACTORY_ADDRESS,
+        ZERO_ADDRESS,
+        0,
+        'fDAI-1 Token',
+        18,
+        'FDAI1',
+        true
+    );
+    fdaiSpinner.succeed(`fDAI-1 Deployed: ${minimeContract.address}`);
+    return minimeContract;
+}
+
+async function changeTokenControler(minimeContract, fdai_manager) {
+    const controlerSpinner = Ora(
+        `Changing fDAI-1 controller to ${fdai_manager}`
+    ).start();
+    const changeControllerTx = await minimeContract.changeController(
+        fdai_manager
+    );
+    await changeControllerTx.wait();
+    controlerSpinner.succeed(
+        `Changed controller: rinkeby.etherscan.io/tx/${changeControllerTx.hash}`
+    );
+    return changeControllerTx;
 }
 
 async function main() {
-    try {
-        const wallet = new Ethers.Wallet.fromMnemonic(key);
-        const ethersProvider = Ethers.getDefaultProvider(network, {
-            infura: 'e22eadb98be944d18e48ab4bec7ecf3f'
-        });
-        const ethersSigner = wallet.connect(ethersProvider);
+    // 1. get Signer
+    const ethersSigner = getSigner();
+    const deployer = await ethersSigner.address;
+    console.log(`Using ${Chalk.cyan(deployer)}`);
 
-        // Account used to initialize permissions
-        const dictatorAccount = await ethersSigner.address;
-        console.log(
-            Chalk.cyan(`Using ${dictatorAccount} as account for permissions`)
-        );
+    // 2. Deploy Company DAO
+    const daoAddress = await createCompanyDao(ethersSigner);
 
-        const deploySpinner = Ora('Deploying Dao...').start();
-        const companyTemplateContract = new Ethers.Contract(
-            COMPANY_TEMPLATE_ADDRESS,
-            companyTemplateAbi,
-            ethersSigner
-        );
+    // 3. generating counterfactual addresses
+    const counterfactualSpinner = Ora('Counterfactual Addresses..').start();
+    const vault = await counterfactualAddress(daoAddress, 0, network);
+    const delay = await counterfactualAddress(daoAddress, 1, network);
+    const fdai_manager = await counterfactualAddress(daoAddress, 2, network);
+    const token_request = await counterfactualAddress(daoAddress, 3, network);
+    const redemptions = await counterfactualAddress(daoAddress, 4, network);
+    counterfactualSpinner.succeed('Counterfactual Addresses calculated');
 
-        // Get the proper function we want to call; ethers will not get the overload
-        // automatically, so we take the proper one from the object, and then call it.
-        const tx = await companyTemplateContract[newTokenAndInstance](
-            'Token',
-            'TKN',
-            'Testing' + Math.random(),
-            ['0x75B98710D5995AB9992F02492B7568b43133161D'],
-            ['1000000000000000000'],
-            ['500000000000000000', '250000000000000000', 86400],
-            0,
-            true
-        );
-        // Filter and get the DAO address from the events.
-        const daoAddress = await getDaoAddress(
-            'DeployDao',
-            companyTemplateContract,
-            tx.hash
-        );
+    // 4. deploy fDAI-1 Token
+    const minimeContract = await deployToken(ethersSigner);
 
-        // Log the DAO Address
-        deploySpinner.succeed(
-            `Dao Deployed: https://${network}.aragon.org/#/${daoAddress}`
-        );
+    // 5. change controller
+    await changeTokenControler(minimeContract, fdai_manager);
 
-        // generating counterfactual addresses
-        const counterfactualSpinner = Ora(
-            'Calculating counterfactual Address...'
-        ).start();
-        const vault = await counterfactualAddress(daoAddress, 0, network);
+    // 6. connect DAO
+    const org = await connectDAO(daoAddress, network);
+    const apps = await getApps(org);
+    const { voting, acl } = apps;
 
-        const delay = await counterfactualAddress(daoAddress, 1, network);
-
-        const fdai_manager = await counterfactualAddress(
-            daoAddress,
-            2,
-            network
-        );
-
-        const token_request = await counterfactualAddress(
-            daoAddress,
-            3,
-            network
-        );
-
-        const redemptions = await counterfactualAddress(daoAddress, 4, network);
-        
-        counterfactualSpinner.succeed('Counterfactual Addresses calculated');
-
-        // deploy fDAI-1 Token
-        const minimeFactory = new Ethers.ContractFactory(
-            minimeAbi,
-            minimeBytecode.object,
-            ethersSigner
-        );
-
-        const fdaiSpinner = Ora('Deploying fDAI-1 Token...').start();
-        const minimeContract = await minimeFactory.deploy(
-            MINIME_FACTORY_ADDRESS,
-            ZERO_ADDRESS,
-            0,
-            'fDAI-1 Token',
-            18,
-            'FDAI1',
-            true
-        );
-        fdaiSpinner.succeed(`fDAI-1 Deployed: ${minimeContract.address}`);
-
-        // change controller
-        const controlerSpinner = Ora(
-            `Changing fDAI-1 controller to ${fdai_manager}`
-        ).start();
-        const changeControllerTx = await minimeContract.changeController(
-            fdai_manager
-        );
-        await changeControllerTx.wait();
-        controlerSpinner.succeed(
-            `Changed controller: rinkeby.etherscan.io/tx/${changeControllerTx.hash}`
-        );
-
-        // connect DAO
-        const org = await connectDAO(daoAddress, network);
-        //console.log(org);
-        const apps = await getApps(org);
-
-        const aclSpinner = Ora('Calculating acl address...').start();
-        const acl = await getAcl(org);
-        aclSpinner.succeed(`acl: ${acl}`);
-
-        const bootstrapSpinner = Ora('bootstrap _Prtcl Apps').start();
-        await bootstrapApps(
-            minimeContract.address,
-            daiAddress,
-            fdai_manager,
-            vault,
-            delay,
-            token_request,
-            redemptions,
-            apps.voting,
-            daoAddress,
-            acl
-        );
-        bootstrapSpinner.succeed(
-            `Vote at http://${network}.aragon.org/#/${daoAddress}/${apps.voting}`
-        );
-    } catch (e) {
-        console.log(e);
-    } finally {
-        process.exit();
-    }
+    // 7. Install apps and permissions
+    await bootstrapApps(
+        minimeContract.address,
+        daiAddress,
+        fdai_manager,
+        vault,
+        delay,
+        token_request,
+        redemptions,
+        voting,
+        daoAddress,
+        acl,
+        network
+    );
 }
 
-main();
+main()
+    .then(() => {
+        process.exit();
+    })
+    .catch((e) => {
+        console.error(e);
+        process.exit();
+    });
